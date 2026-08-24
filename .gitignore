@@ -9,6 +9,7 @@ __pycache__/
 *.tfstate.*
 .terraform/
 *.tfvars
+*.plan
 !terraform/environments/*.tfvars.example
 coverage.xml
 htmlcov/

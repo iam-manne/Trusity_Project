@@ -74,7 +74,14 @@ jobs:
         if: steps.image.outputs.build == 'true'
         run: docker push "${{ steps.image.outputs.uri }}"
 
+      - name: Check whether the ECS service exists
+        id: ecs
+        run: |
+          COUNT=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'length(services)' --output text)
+          echo "exists=$([[ "$COUNT" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Register new task definition
+        if: steps.ecs.outputs.exists == 'true'
         env:
           IMAGE_URI: ${{ steps.image.outputs.uri }}
         run: |
@@ -87,7 +94,7 @@ jobs:
           echo "TASK_ARN=$TASK_ARN" >> "$GITHUB_ENV"
 
       - name: Deploy and wait for health
+        if: steps.ecs.outputs.exists == 'true'
         run: |
           aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_ARN" >/dev/null
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
-
