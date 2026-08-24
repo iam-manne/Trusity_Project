@@ -15,9 +15,9 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: order-service-prod
-  ECS_CLUSTER: order-service-prod
-  ECS_SERVICE: order-service-prod
+  ECR_REPOSITORY: order-service-dev
+  ECS_CLUSTER: order-service-dev
+  ECS_SERVICE: order-service-dev
   CONTAINER_NAME: app
 
 jobs:
