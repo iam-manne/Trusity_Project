@@ -80,7 +80,7 @@ jobs:
       - name: Check whether the ECS service exists
         id: ecs
         run: |
-          COUNT=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'length(services)' --output text)
+          COUNT=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'length(services)' --output text 2>/dev/null || echo 0)
           echo "exists=$([[ "$COUNT" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Register new task definition
