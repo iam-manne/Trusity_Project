@@ -31,11 +31,14 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install and test
-        run: |
-          pip install -r requirements-dev.txt
-          ruff check app tests lambda_bulk_import scripts
-          pytest -q
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check app tests lambda_bulk_import scripts
+
+      - name: Test
+        run: pytest -q
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
