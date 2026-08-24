@@ -1,0 +1,5 @@
+customer_id,product_id,quantity
+customer-100,product-a,2
+customer-101,product-b,1
+customer-102,product-a,4
+invalid-customer,product-c,0

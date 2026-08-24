@@ -1,0 +1,8 @@
+environment       = "dev"
+desired_count     = 2
+min_capacity      = 2
+max_capacity      = 4
+db_instance_class = "db.t4g.micro"
+db_multi_az       = false
+# container_image = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/order-service-dev:<git-sha>"
+

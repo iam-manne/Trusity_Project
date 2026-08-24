@@ -1,0 +1,10 @@
+environment       = "prod"
+desired_count     = 3
+min_capacity      = 3
+max_capacity      = 12
+db_instance_class = "db.t4g.small"
+db_multi_az       = true
+# alarm_email     = "operations@example.com"
+# container_image = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/order-service-prod:<git-sha>"
+# github_repository = "your-org/your-repository"
+# create_github_oidc_provider = true # only once per AWS account

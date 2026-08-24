@@ -1,0 +1,93 @@
+name: Build, scan, and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Existing immutable image tag to roll back to
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: order-service-prod
+  ECS_CLUSTER: order-service-prod
+  ECS_SERVICE: order-service-prod
+  CONTAINER_NAME: app
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install and test
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check app tests lambda_bulk_import scripts
+          pytest -q
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Select immutable image
+        id: image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+        run: |
+          TAG="${REQUESTED_TAG:-${GITHUB_SHA}}"
+          echo "uri=${REGISTRY}/${ECR_REPOSITORY}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "build=$([[ -z "$REQUESTED_TAG" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        if: steps.image.outputs.build == 'true'
+        run: docker build --tag "${{ steps.image.outputs.uri }}" .
+
+      - name: Scan container
+        if: steps.image.outputs.build == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.image.outputs.uri }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Push image
+        if: steps.image.outputs.build == 'true'
+        run: docker push "${{ steps.image.outputs.uri }}"
+
+      - name: Register new task definition
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+        run: |
+          aws ecs describe-task-definition --task-definition "$ECS_SERVICE" --query taskDefinition > task-definition.json
+          jq --arg IMAGE "$IMAGE_URI" --arg NAME "$CONTAINER_NAME" \
+            'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy) |
+             .containerDefinitions |= map(if .name == $NAME then .image = $IMAGE else . end)' \
+            task-definition.json > next-task-definition.json
+          TASK_ARN=$(aws ecs register-task-definition --cli-input-json file://next-task-definition.json --query taskDefinition.taskDefinitionArn --output text)
+          echo "TASK_ARN=$TASK_ARN" >> "$GITHUB_ENV"
+
+      - name: Deploy and wait for health
+        run: |
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_ARN" >/dev/null
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+
