@@ -3,8 +3,10 @@
 
 import argparse
 import html
+import json
 import os
 from pathlib import Path
+from urllib.request import urlopen
 
 import boto3
 from sqlalchemy import create_engine, text
@@ -46,18 +48,42 @@ strong{{font-size:2rem;overflow-wrap:anywhere}}@media(max-width:480px){{main{{pa
 </style></head><body><main><header><h1>Order statistics</h1><p>Current processing snapshot</p></header><section>{cards}</section></main></body></html>"""
 
 
+def stats_from_api(api_url: str) -> dict:
+    with urlopen(f"{api_url.rstrip('/')}/orders", timeout=30) as response:
+        orders = json.load(response)
+    quantities: dict[str, int] = {}
+    for order in orders:
+        product_id = order["product_id"]
+        quantities[product_id] = quantities.get(product_id, 0) + order["quantity"]
+    top_product = min(
+        quantities,
+        key=lambda product_id: (-quantities[product_id], product_id),
+        default="N/A",
+    )
+    return {
+        "total": len(orders),
+        "pending": sum(order["status"] == "pending" for order in orders),
+        "completed": sum(order["status"] == "completed" for order in orders),
+        "failed": sum(order["status"] == "failed" for order in orders),
+        "top_product": top_product,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"))
+    parser.add_argument("--api-url", default=os.getenv("API_URL"))
     parser.add_argument("--output", type=Path, default=Path("site/index.html"))
     parser.add_argument("--bucket", help="Optional S3 destination bucket")
     args = parser.parse_args()
-    if not args.database_url:
-        parser.error("--database-url or DATABASE_URL is required")
-
-    engine = create_engine(args.database_url, pool_pre_ping=True)
-    with engine.connect() as connection:
-        stats = dict(connection.execute(QUERY).mappings().one())
+    if args.api_url:
+        stats = stats_from_api(args.api_url)
+    elif args.database_url:
+        engine = create_engine(args.database_url, pool_pre_ping=True)
+        with engine.connect() as connection:
+            stats = dict(connection.execute(QUERY).mappings().one())
+    else:
+        parser.error("--api-url, API_URL, --database-url, or DATABASE_URL is required")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(stats), encoding="utf-8")
     if args.bucket:
@@ -70,4 +96,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

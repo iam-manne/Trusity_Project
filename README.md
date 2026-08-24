@@ -108,7 +108,8 @@ Upload a bulk file and publish statistics:
 $imports = terraform -chdir=terraform output -raw import_bucket
 aws s3 cp examples/orders.csv "s3://$imports/uploads/orders.csv"
 
-# Run from a network path that can reach private RDS, such as an ECS one-off task or SSM host.
+# Use the read API from an operator workstation, or use --database-url from a VPC-reachable runner.
+python scripts/generate_stats.py --api-url (terraform -chdir=terraform output -raw api_url) --bucket (terraform -chdir=terraform output -raw statistics_bucket)
 python scripts/generate_stats.py --database-url $env:DATABASE_URL --bucket (terraform -chdir=terraform output -raw statistics_bucket)
 ```
 

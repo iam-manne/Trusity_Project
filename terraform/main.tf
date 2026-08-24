@@ -13,7 +13,7 @@ resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "${local.name}-vpc" }
+  tags                 = { Name = "${local.name}-vpc" }
 }
 
 resource "aws_internet_gateway" "main" {
@@ -27,7 +27,7 @@ resource "aws_subnet" "public" {
   availability_zone       = local.azs[count.index]
   cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
   map_public_ip_on_launch = true
-  tags = { Name = "${local.name}-public-${count.index + 1}" }
+  tags                    = { Name = "${local.name}-public-${count.index + 1}" }
 }
 
 resource "aws_subnet" "private" {
@@ -35,7 +35,7 @@ resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   availability_zone = local.azs[count.index]
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
-  tags = { Name = "${local.name}-private-${count.index + 1}" }
+  tags              = { Name = "${local.name}-private-${count.index + 1}" }
 }
 
 resource "aws_eip" "nat" {
@@ -155,27 +155,27 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "orders" {
-  identifier                    = local.name
-  engine                        = "postgres"
-  engine_version                = "16.4"
-  instance_class                = var.db_instance_class
-  allocated_storage             = 20
-  max_allocated_storage         = 100
-  storage_encrypted             = true
-  db_name                       = "orders"
-  username                      = "orders_admin"
-  manage_master_user_password   = true
-  db_subnet_group_name          = aws_db_subnet_group.main.name
-  vpc_security_group_ids        = [aws_security_group.database.id]
-  publicly_accessible           = false
-  multi_az                      = var.db_multi_az
-  backup_retention_period       = var.environment == "prod" ? 14 : 1
-  deletion_protection           = var.environment == "prod"
-  skip_final_snapshot           = var.environment != "prod"
-  final_snapshot_identifier     = var.environment == "prod" ? "${local.name}-final" : null
-  performance_insights_enabled  = true
-  auto_minor_version_upgrade    = true
-  apply_immediately             = var.environment != "prod"
+  identifier                   = local.name
+  engine                       = "postgres"
+  engine_version               = "16.15"
+  instance_class               = var.db_instance_class
+  allocated_storage            = 20
+  max_allocated_storage        = 100
+  storage_encrypted            = true
+  db_name                      = "orders"
+  username                     = "orders_admin"
+  manage_master_user_password  = true
+  db_subnet_group_name         = aws_db_subnet_group.main.name
+  vpc_security_group_ids       = [aws_security_group.database.id]
+  publicly_accessible          = false
+  multi_az                     = var.db_multi_az
+  backup_retention_period      = var.environment == "prod" ? 14 : 1
+  deletion_protection          = var.environment == "prod"
+  skip_final_snapshot          = var.environment != "prod"
+  final_snapshot_identifier    = var.environment == "prod" ? "${local.name}-final" : null
+  performance_insights_enabled = true
+  auto_minor_version_upgrade   = true
+  apply_immediately            = var.environment != "prod"
 }
 
 resource "aws_ecr_repository" "app" {
@@ -189,8 +189,8 @@ resource "aws_ecr_lifecycle_policy" "app" {
   policy = jsonencode({ rules = [{
     rulePriority = 1
     description  = "Retain 30 release images"
-    selection = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 30 }
-    action = { type = "expire" }
+    selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 30 }
+    action       = { type = "expire" }
   }] })
 }
 
@@ -203,11 +203,11 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = substr("${local.name}-app", 0, 32)
-  port        = 8080
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
+  name                 = substr("${local.name}-app", 0, 32)
+  port                 = 8080
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = aws_vpc.main.id
   deregistration_delay = 30
   health_check {
     path                = "/health"
@@ -254,7 +254,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
 resource "aws_iam_role_policy" "ecs_secret" {
   role = aws_iam_role.ecs_execution.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [{
-    Effect = "Allow", Action = ["secretsmanager:GetSecretValue"],
+    Effect   = "Allow", Action = ["secretsmanager:GetSecretValue"],
     Resource = aws_db_instance.orders.master_user_secret[0].secret_arn
   }] })
 }
@@ -283,9 +283,9 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
   container_definitions = jsonencode([{
-    name      = "app"
-    image     = var.container_image
-    essential = true
+    name         = "app"
+    image        = var.container_image
+    essential    = true
     portMappings = [{ containerPort = 8080, protocol = "tcp" }]
     environment = [
       { name = "ENVIRONMENT", value = var.environment },
@@ -302,13 +302,13 @@ resource "aws_ecs_task_definition" "app" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        awslogs-group = aws_cloudwatch_log_group.app.name
-        awslogs-region = var.aws_region
+        awslogs-group         = aws_cloudwatch_log_group.app.name
+        awslogs-region        = var.aws_region
         awslogs-stream-prefix = "app"
       }
     }
     healthCheck = {
-      command = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
+      command  = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
       interval = 15, timeout = 5, retries = 3, startPeriod = 30
     }
   }])
@@ -373,10 +373,10 @@ resource "aws_s3_bucket_versioning" "imports" {
 }
 
 resource "aws_s3_bucket_public_access_block" "imports" {
-  bucket = aws_s3_bucket.imports.id
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
+  bucket                  = aws_s3_bucket.imports.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
@@ -386,10 +386,10 @@ resource "aws_s3_bucket" "site" {
 }
 
 resource "aws_s3_bucket_public_access_block" "site" {
-  bucket = aws_s3_bucket.site.id
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
+  bucket                  = aws_s3_bucket.site.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
@@ -436,8 +436,8 @@ resource "aws_cloudfront_distribution" "site" {
 resource "aws_s3_bucket_policy" "site" {
   bucket = aws_s3_bucket.site.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [{
-    Effect = "Allow", Principal = { Service = "cloudfront.amazonaws.com" },
-    Action = "s3:GetObject", Resource = "${aws_s3_bucket.site.arn}/*",
+    Effect    = "Allow", Principal = { Service = "cloudfront.amazonaws.com" },
+    Action    = "s3:GetObject", Resource = "${aws_s3_bucket.site.arn}/*",
     Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.site.arn } }
   }] })
 }
@@ -457,20 +457,20 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
 resource "aws_iam_role_policy" "lambda" {
   role = aws_iam_role.lambda.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject"], Resource = "${aws_s3_bucket.imports.arn}/*" },
+    { Effect = "Allow", Action = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"], Resource = "${aws_s3_bucket.imports.arn}/*" },
     { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = aws_db_instance.orders.master_user_secret[0].secret_arn }
   ] })
 }
 
 resource "aws_lambda_function" "bulk_import" {
-  function_name    = "${local.name}-bulk-import"
-  role             = aws_iam_role.lambda.arn
-  handler          = "handler.handler"
-  runtime          = "python3.12"
-  filename         = var.lambda_package_path
-  source_code_hash = filebase64sha256(var.lambda_package_path)
-  timeout          = 120
-  memory_size      = 512
+  function_name                  = "${local.name}-bulk-import"
+  role                           = aws_iam_role.lambda.arn
+  handler                        = "handler.handler"
+  runtime                        = "python3.12"
+  filename                       = var.lambda_package_path
+  source_code_hash               = filebase64sha256(var.lambda_package_path)
+  timeout                        = 120
+  memory_size                    = 512
   reserved_concurrent_executions = 5
   environment {
     variables = {
@@ -539,8 +539,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu" {
   evaluation_periods  = 2
   threshold           = 80
   comparison_operator = "GreaterThanThreshold"
-  dimensions = { ClusterName = aws_ecs_cluster.main.name, ServiceName = aws_ecs_service.app.name }
-  alarm_actions = [aws_sns_topic.alarms.arn]
+  dimensions          = { ClusterName = aws_ecs_cluster.main.name, ServiceName = aws_ecs_service.app.name }
+  alarm_actions       = [aws_sns_topic.alarms.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
@@ -573,7 +573,7 @@ resource "aws_iam_role" "github_deploy" {
   count = var.github_repository == "" ? 0 : 1
   name  = "${local.name}-github-deploy"
   assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
-    Effect = "Allow", Action = "sts:AssumeRoleWithWebIdentity",
+    Effect    = "Allow", Action = "sts:AssumeRoleWithWebIdentity",
     Principal = { Federated = local.github_oidc_arn },
     Condition = {
       StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" },
@@ -589,23 +589,23 @@ resource "aws_iam_role_policy" "github_deploy" {
   role  = aws_iam_role.github_deploy[0].id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     {
-      Effect = "Allow",
-      Action = ["ecr:GetAuthorizationToken"],
+      Effect   = "Allow",
+      Action   = ["ecr:GetAuthorizationToken"],
       Resource = "*"
     },
     {
-      Effect = "Allow",
-      Action = ["ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload"],
+      Effect   = "Allow",
+      Action   = ["ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload"],
       Resource = aws_ecr_repository.app.arn
     },
     {
-      Effect = "Allow",
-      Action = ["ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition", "ecs:DescribeServices", "ecs:UpdateService"],
+      Effect   = "Allow",
+      Action   = ["ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition", "ecs:DescribeServices", "ecs:UpdateService"],
       Resource = "*"
     },
     {
-      Effect = "Allow",
-      Action = ["iam:PassRole"],
+      Effect   = "Allow",
+      Action   = ["iam:PassRole"],
       Resource = [aws_iam_role.ecs_execution.arn, aws_iam_role.ecs_task.arn]
     }
   ] })
