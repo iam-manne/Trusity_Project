@@ -38,7 +38,7 @@ jobs:
         run: ruff check app tests lambda_bulk_import scripts
 
       - name: Test
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
