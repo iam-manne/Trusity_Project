@@ -577,7 +577,9 @@ resource "aws_iam_role" "github_deploy" {
     Principal = { Federated = local.github_oidc_arn },
     Condition = {
       StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" },
-      StringLike   = { "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/main" }
+      StringLike = {
+        "token.actions.githubusercontent.com:sub" = var.github_oidc_subject != "" ? var.github_oidc_subject : "repo:${var.github_repository}:ref:refs/heads/main"
+      }
     }
   }] })
 }

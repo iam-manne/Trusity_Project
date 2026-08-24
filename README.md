@@ -87,7 +87,7 @@ Copy-Item terraform\environments\dev.tfvars.example terraform\dev.tfvars
 terraform -chdir=terraform apply -var-file=dev.tfvars -target=aws_ecr_repository.app
 ```
 
-Set `github_repository="owner/repository"` in the environment tfvars to provision the least-privilege deploy role. Set `create_github_oidc_provider=true` only if the account does not already have GitHub's account-wide OIDC provider, then store the `github_deploy_role_arn` output as the repository secret `AWS_DEPLOY_ROLE_ARN`.
+Set `github_repository="owner/repository"` in the environment tfvars to provision the least-privilege deploy role. If CloudTrail shows GitHub emitting immutable owner/repository IDs in the OIDC `sub` claim, set that exact main-branch value as `github_oidc_subject`. Set `create_github_oidc_provider=true` only if the account does not already have GitHub's account-wide OIDC provider, then store the `github_deploy_role_arn` output as the repository secret `AWS_DEPLOY_ROLE_ARN`.
 
 The targeted bootstrap creates only ECR because the first image cannot be pushed before its repository exists. Build and push the first immutable application image, then run the complete plan/apply. Do not run a full apply with the placeholder `container_image` default.
 

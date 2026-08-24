@@ -67,6 +67,12 @@ variable "github_repository" {
   default     = ""
 }
 
+variable "github_oidc_subject" {
+  type        = string
+  description = "Exact GitHub OIDC sub claim for main; use immutable owner/repository IDs when emitted"
+  default     = ""
+}
+
 variable "create_github_oidc_provider" {
   type        = bool
   description = "Create account-wide GitHub OIDC provider; false when it already exists"
